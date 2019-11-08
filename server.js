@@ -19,7 +19,7 @@ let location = {};
 // http://localhost:3000/location?data=seattle
 
 function locationHandler(request, response) {
-  const url = `https://maps.googleapis.com/maps/api/geocode/json?address=${request.query.data}&key=${process.env.GoogleAPI}`;
+  const url = `https://maps.googleapis.com/maps/api/geocode/json?address=${request.query.data}&key=${process.env.GOOGLEAPI}`;
 
   // console.log(request.query.data)
 
@@ -41,7 +41,7 @@ function locationHandler(request, response) {
 }
 
 function weatherHandler(request, response) {
-  const url = `https://api.darksky.net/forecast/${process.env.DarkskyAPI}/${request.query.data.latitude},${request.query.data.longitude}`;
+  const url = `https://api.darksky.net/forecast/${process.env.DARKSKYAPI}/${request.query.data.latitude},${request.query.data.longitude}`;
 
   superagent.get(url)
     .then(data => {
@@ -56,6 +56,37 @@ function weatherHandler(request, response) {
 
 }
 
+function yelpHandler(request, response) {
+  const url = `https://api.yelp.com/v3/businesses/search?term=delis&latitude=${request.query.data.latitude}&longitude=${request.query.data.longitude}`;
+
+  superagent.get(url)
+    .set('Authorization', `Bearer ${process.env.YELPAPI}`)
+    .then(data => {
+      const yelpSummaries = data.body.businesses.map(food => {
+        return new Yelp(food);
+      });
+      response.status(200).json(yelpSummaries);
+    })
+    .catch(() => {
+      errorHandler('something went wrong.', request, response);
+    });
+
+}
+
+
+function Yelp(restaraunt) {
+
+  this.name = restaraunt.name;
+  this.image_url = restaraunt.image_url;
+  this.price = restaraunt.price;
+  this.rating = restaraunt.rating;
+  this.url = restaraunt.url;
+
+}
+function Weather(day) {
+  this.summary = day.summary;
+  this.time = new Date(day.time * 1000).toString().slice(0, 15);
+}
 function Locations(query, geoData) {
   this.search_query = query;
   this.formatted_query = geoData.results[0].formatted_address;
@@ -63,11 +94,6 @@ function Locations(query, geoData) {
   this.longitude = geoData.results[0].geometry.location.lng;
 }
 
-
-function Weather(day) {
-  this.summary = day.summary;
-  this.time = new Date(day.time * 1000).toString().slice(0, 15);
-}
 
 app.listen(PORT, () => {
   console.log(`listening on PORT ${PORT}`);
@@ -86,6 +112,7 @@ function errorHandler(error, request, response) {
 
 
 app.get('/location', locationHandler);
+app.get('/yelp', yelpHandler);
 app.get('/weather', weatherHandler);
 app.get('*', notFoundHandler);
 app.use(errorHandler);
